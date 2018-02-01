@@ -9,6 +9,7 @@
 #include <DallasTemperature.h>
 
 #define sensorPin 22
+#define TOPIC_HEADER "data/kresit/ds18/"
 
 //#define SERIAL_PRINT 1  // Comment this to remove the Serial.print from the code(Do it once the program is finalize)
 #ifdef SERIAL_PRINT
@@ -23,6 +24,7 @@
 #define _DELAY(x)
 #endif
 
+// A unique MAC ID has to be assigned for the Ethernet Module
 byte mac[] = {
   0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x01
 };
@@ -31,17 +33,18 @@ const char* mqtt_server = "10.129.149.9";
 
 const char* mqtt_username = "<MQTT_BROKER_USERNAME>";
 const char* mqtt_password = "<MQTT_BROKER_PASSWORD>";
-
-const char* mqtt_topic_temp = "arduino/SIC/temp";
-
 const char* client_id = "oneWireTempNode_213";
+
+char mqtt_topic_temp[35];
+
+char address[16];
 
 EthernetClient ethClient;
 PubSubClient client(ethClient);
 
 IPAddress ip(10, 129, 149, 70);
-IPAddress gateway(10, 129, 149, 250);
-IPAddress subnet(255, 255, 255, 0);
+//IPAddress gateway(10, 129, 149, 250);
+//IPAddress subnet(255, 255, 255, 0);
 
 EthernetUDP udp;
 NTPClient ntpClient(udp);
@@ -57,7 +60,9 @@ unsigned long ntpValue = 0;
 unsigned long prevNtpValue = 0;
 
 DeviceAddress sensorAddress[20];
+unsigned long serialNo[20];
 
+// Function to initialize timer interrupt for ONE second
 void timerInterrupt()
 {
   noInterrupts();           // disable all interrupts
@@ -79,6 +84,7 @@ ISR(TIMER1_OVF_vect)
   ntpValue++;
 }
 
+// Connects to MQTT if there is a broken pipe
 void reconnect()
 {
   while (!client.connected())
@@ -166,15 +172,14 @@ void loop() {
         ntpValue = currNtpVal;
       }
       _SER_PRINTLN(ntpValue);
-      ntpString = String(ntpValue);
 
       _SER_PRINTLN("---------------------------");
 
       count = 0;
     }
+    
     for (int index = 0; index < sensorCount; index++)
     {
-
       for (int indexByte = 0; indexByte < 8; indexByte++)
       {
         if (indexByte == 0)
@@ -186,18 +191,23 @@ void loop() {
         {
           if (sensorAddress[index][8 - indexByte] < 16) addressString += '0';
 
-          //if (sensorAddress[i][8 - indexByte] < 16) _SER_PRINT("0");
-          //_SER_PRINT(sensorAddress[i][8 - indexByte], HEX);
-
           addressString += String(sensorAddress[index][8 - indexByte], HEX);
         }
       }
+
+      serialNo[index]++;
       tempString = String(sensor.getTempC(sensorAddress[index]));
-      //_SER_PRINT(" Temperature is ");
-      //_SER_PRINTLN(tempString);
-      mqttString = String(ntpValue) + "," + addressString + "," + tempString;
-      _SER_PRINTLN(mqttString);
+      mqttString = String(ntpValue) + "," + String(serialNo[index]) + ","  + tempString;    // To keep a count of number of sensors, create an array of counter. The index in the array will point to the count of the measured data.
+      _SER_PRINTLN(addressString);
       _DELAY(20);
+
+      addressString.toCharArray(address, 16);
+
+      strcpy(mqtt_topic_temp, TOPIC_HEADER);
+      strcat(mqtt_topic_temp, address);
+
+      _SER_PRINTLN(mqtt_topic_temp);
+      
       mqttString.toCharArray(mqttData, 50);
       client.publish(mqtt_topic_temp, mqttData);
     }
