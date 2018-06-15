@@ -11,6 +11,8 @@
 #define sensorPin 22
 #define TOPIC_HEADER "data/kresit/ds18/"
 
+#define SLEEP_TIME 60   // Sleep time is seconds
+
 //#define SERIAL_PRINT 1  // Comment this to remove the Serial.print from the code(Do it once the program is finalize)
 #ifdef SERIAL_PRINT
 #define _SER_BEGIN(x) Serial.begin(x)
@@ -177,39 +179,42 @@ void loop() {
 
       count = 0;
     }
-    
-    for (int index = 0; index < sensorCount; index++)
+
+    if (count == SLEEP_TIME)
     {
-      for (int indexByte = 0; indexByte < 8; indexByte++)
+      for (int index = 0; index < sensorCount; index++)
       {
-        if (indexByte == 0)
+        for (int indexByte = 0; indexByte < 8; indexByte++)
         {
-          addressString = String(sensorAddress[index][indexByte], HEX);
-          addressString += '-';
-        }
-        else if (indexByte != 1)
-        {
-          if (sensorAddress[index][8 - indexByte] < 16) addressString += '0';
+          if (indexByte == 0)
+          {
+            addressString = String(sensorAddress[index][indexByte], HEX);
+            addressString += '-';
+          }
+          else if (indexByte != 1)
+          {
+            if (sensorAddress[index][8 - indexByte] < 16) addressString += '0';
 
-          addressString += String(sensorAddress[index][8 - indexByte], HEX);
+            addressString += String(sensorAddress[index][8 - indexByte], HEX);
+          }
         }
+
+        serialNo[index]++;
+        tempString = String(sensor.getTempC(sensorAddress[index]));
+        mqttString = String(ntpValue) + "," + String(serialNo[index]) + ","  + tempString;    // To keep a count of number of sensors, create an array of counter. The index in the array will point to the count of the measured data.
+        _SER_PRINTLN(addressString);
+        _DELAY(20);
+
+        addressString.toCharArray(address, 16);
+
+        strcpy(mqtt_topic_temp, TOPIC_HEADER);
+        strcat(mqtt_topic_temp, address);
+
+        _SER_PRINTLN(mqtt_topic_temp);
+
+        mqttString.toCharArray(mqttData, 50);
+        client.publish(mqtt_topic_temp, mqttData);
       }
-
-      serialNo[index]++;
-      tempString = String(sensor.getTempC(sensorAddress[index]));
-      mqttString = String(ntpValue) + "," + String(serialNo[index]) + ","  + tempString;    // To keep a count of number of sensors, create an array of counter. The index in the array will point to the count of the measured data.
-      _SER_PRINTLN(addressString);
-      _DELAY(20);
-
-      addressString.toCharArray(address, 16);
-
-      strcpy(mqtt_topic_temp, TOPIC_HEADER);
-      strcat(mqtt_topic_temp, address);
-
-      _SER_PRINTLN(mqtt_topic_temp);
-      
-      mqttString.toCharArray(mqttData, 50);
-      client.publish(mqtt_topic_temp, mqttData);
     }
   }
 }
