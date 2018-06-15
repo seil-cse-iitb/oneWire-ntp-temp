@@ -60,6 +60,7 @@ bool gotAddress = false;
 unsigned long count = 0;
 unsigned long ntpValue = 0;
 unsigned long prevNtpValue = 0;
+unsigned int sleep_count = 0;
 
 DeviceAddress sensorAddress[20];
 unsigned long serialNo[20];
@@ -84,6 +85,7 @@ ISR(TIMER1_OVF_vect)
   TCNT1 = 3036;            // preload timer
   count++;
   ntpValue++;
+  sleep_count++;
 }
 
 // Connects to MQTT if there is a broken pipe
@@ -156,7 +158,7 @@ void loop() {
 
     prevNtpValue = ntpValue;
 
-    _SER_PRINTLN("-------------------------------");
+    //_SER_PRINTLN("-------------------------------");
 
     if (count == 600)
     {
@@ -180,7 +182,7 @@ void loop() {
       count = 0;
     }
 
-    if (count == SLEEP_TIME)
+    if (sleep_count == SLEEP_TIME)
     {
       for (int index = 0; index < sensorCount; index++)
       {
@@ -215,6 +217,8 @@ void loop() {
         mqttString.toCharArray(mqttData, 50);
         client.publish(mqtt_topic_temp, mqttData);
       }
+
+      sleep_count = 0;
     }
   }
 }
