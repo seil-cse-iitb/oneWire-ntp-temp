@@ -160,7 +160,7 @@ void loop() {
 
     //_SER_PRINTLN("-------------------------------");
 
-    if (count == 600)
+    if (count >= 600)
     {
       _SER_PRINTLN("---------------------------");
       ntpClient.update();
@@ -182,7 +182,7 @@ void loop() {
       count = 0;
     }
 
-    if (sleep_count == SLEEP_TIME)
+    if (sleep_count >= SLEEP_TIME)
     {
       for (int index = 0; index < sensorCount; index++)
       {
